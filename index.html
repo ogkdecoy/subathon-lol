@@ -30,7 +30,7 @@
     position:relative; width:320px; height:320px; border:1px solid var(--gold);
     box-shadow:0 0 0 1px rgba(200,155,60,.25), 0 0 60px rgba(10,200,185,.08) inset;
     background:linear-gradient(180deg, rgba(15,27,51,.75), rgba(7,12,23,.75));
-    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden;
     margin-bottom:22px;
   }
   .corner{ position:absolute; width:16px; height:16px; border:2px solid var(--gold); }
@@ -39,19 +39,14 @@
   .c-bl{bottom:-2px;left:-2px;border-right:none;border-top:none;}
   .c-br{bottom:-2px;right:-2px;border-left:none;border-top:none;}
 
-  #reel-strip{ display:flex; align-items:center; will-change:transform; }
-  .reel-item{ width:120px; height:120px; margin:0 8px; flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-  .reel-item img{ width:88px; height:88px; border-radius:50%; border:2px solid var(--line); object-fit:cover; }
-  .reel-item span{ font-size:11px; color:var(--muted); margin-top:6px; text-align:center; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #reel-image{ width:200px; height:200px; border-radius:50%; border:3px solid var(--line); object-fit:cover; transition:border-color .15s; }
+  #reel-image.landed{ border-color:var(--gold); box-shadow:0 0 24px rgba(200,155,60,.4); }
+  #reel-caption{ font-family:'Cinzel',serif; font-size:18px; color:var(--gold-soft); margin-top:14px; min-height:26px; }
 
   #pointer{ position:absolute; left:50%; top:-2px; transform:translateX(-50%); width:0; height:0;
     border-left:8px solid transparent; border-right:8px solid transparent; border-top:10px solid var(--gold); z-index:5; }
 
-  #result{ min-height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; margin-bottom:20px; }
-  #result img{ width:96px; height:96px; border-radius:50%; border:2px solid var(--gold); box-shadow:0 0 20px rgba(200,155,60,.3); }
-  #result-name{ font-family:'Cinzel',serif; font-size:20px; color:var(--gold-soft); }
-
-  #controls{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+  #controls{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:20px; }
   button{
     font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:.05em; text-transform:uppercase; font-size:13px;
     background:transparent; color:var(--parchment); border:1px solid var(--line); padding:10px 18px; cursor:pointer; transition:.15s;
@@ -99,12 +94,8 @@
   <div id="admin-zone" style="display:none;">
     <div id="reel-frame">
       <div class="corner c-tl"></div><div class="corner c-tr"></div><div class="corner c-bl"></div><div class="corner c-br"></div>
-      <div id="pointer"></div>
-      <div id="reel-strip"></div>
-    </div>
-
-    <div id="result">
-      <div id="result-empty" style="color:var(--muted);font-size:14px;">Lance la roue pour tirer un champion</div>
+      <img id="reel-image" src="" alt="" style="display:none;">
+      <div id="reel-caption"></div>
     </div>
 
     <div id="controls">
@@ -300,25 +291,6 @@
     })));
   }
 
-  function buildStrip(finalChamp){
-    const p = pool();
-    const seq = [];
-    const loops = 16;
-    for(let i=0;i<loops;i++) seq.push(p[Math.floor(Math.random()*p.length)]);
-    seq.push(finalChamp);
-    const strip = $('reel-strip');
-    strip.style.transition = 'none';
-    strip.style.transform = 'translateX(0px)';
-    strip.innerHTML = '';
-    seq.forEach(c => {
-      const div = document.createElement('div');
-      div.className = 'reel-item';
-      div.innerHTML = `<img src="${c.img}" alt=""><span>${c.name}</span>`;
-      strip.appendChild(div);
-    });
-    return seq.length;
-  }
-
   function spin(){
     if(spinning) return;
     const p = pool();
@@ -328,39 +300,51 @@
     $('btn-spin').disabled = true;
     $('btn-won').disabled = true;
     $('btn-again').disabled = true;
-    $('result').innerHTML = '';
 
     const finalChamp = p[Math.floor(Math.random()*p.length)];
     currentPick = finalChamp;
-    const itemWidth = 136;
-    const count = buildStrip(finalChamp);
-    const frameWidth = $('reel-frame').clientWidth;
-    const targetX = -(((count-1) * itemWidth) - (frameWidth/2 - itemWidth/2));
 
-    const strip = $('reel-strip');
-    requestAnimationFrame(() => {
-      strip.style.transition = 'transform 3.2s cubic-bezier(.12,.72,.15,1)';
-      strip.style.transform = `translateX(${targetX}px)`;
-    });
+    const reelImg = $('reel-image');
+    const caption = $('reel-caption');
+    reelImg.style.display = 'block';
+    reelImg.classList.remove('landed');
 
-    setTimeout(() => {
-      spinning = false;
-      showResult(finalChamp);
-      $('btn-spin').disabled = pool().length <= 1;
-      $('btn-won').disabled = false;
-      $('btn-again').disabled = false;
-    }, 3300);
+    const totalDuration = 1800;
+    const startTime = Date.now();
+
+    function tick(){
+      const elapsed = Date.now() - startTime;
+      if(elapsed >= totalDuration){
+        reelImg.src = finalChamp.img;
+        caption.textContent = finalChamp.name;
+        reelImg.classList.add('landed');
+        spinning = false;
+        $('btn-spin').disabled = pool().length <= 1;
+        $('btn-won').disabled = false;
+        $('btn-again').disabled = false;
+        return;
+      }
+      const c = p[Math.floor(Math.random()*p.length)];
+      reelImg.src = c.img;
+      caption.textContent = c.name;
+      // slow down over time: delay grows from ~60ms to ~220ms
+      const progress = elapsed / totalDuration;
+      const delay = 60 + progress * 200;
+      setTimeout(tick, delay);
+    }
+    tick();
   }
 
   function finishOnSingle(){
-    showResult(currentPick);
+    const reelImg = $('reel-image');
+    const caption = $('reel-caption');
+    reelImg.style.display = 'block';
+    reelImg.src = currentPick.img;
+    caption.textContent = currentPick.name;
+    reelImg.classList.add('landed');
     $('btn-spin').disabled = true;
     $('btn-won').disabled = false;
     $('btn-again').disabled = true;
-  }
-
-  function showResult(c){
-    $('result').innerHTML = `<img src="${c.img}" alt=""><div id="result-name">${c.name}</div>`;
   }
 
   if(isAdmin){
@@ -380,7 +364,8 @@
       currentPick = null;
       $('btn-won').disabled = true;
       $('btn-again').disabled = true;
-      $('result').innerHTML = `<div id="result-empty" style="color:var(--muted);font-size:14px;">Lance la roue pour tirer un champion</div>`;
+      $('reel-image').style.display = 'none';
+      $('reel-caption').textContent = '';
     };
     $('btn-reset').onclick = () => {
       showConfirm('Réinitialiser la progression ? Tous les champions redeviennent disponibles pour tout le monde (viewers inclus).', async () => {
@@ -392,7 +377,8 @@
         $('btn-spin').disabled = false;
         $('btn-won').disabled = true;
         $('btn-again').disabled = true;
-        $('result').innerHTML = `<div id="result-empty" style="color:var(--muted);font-size:14px;">Lance la roue pour tirer un champion</div>`;
+        $('reel-image').style.display = 'none';
+        $('reel-caption').textContent = '';
         $('status').textContent = '';
       });
     };
