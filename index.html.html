@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Défi Champions — La Faille Complète</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Rajdhani:wght@500;600;700&display=swap');
+
+  :root{
+    --bg:#070c17; --panel:#0f1b33; --line:#1f3358;
+    --gold:#c89b3c; --gold-soft:#e8cb87; --teal:#0ac8b9;
+    --parchment:#f0e6d2; --danger:#e84057; --muted:#7c8aab; --win:#3ddc84;
+  }
+  *{box-sizing:border-box;}
+  html,body{ margin:0; min-height:100%; background:radial-gradient(ellipse at 50% 10%, #0d1830 0%, #05080f 65%);
+    font-family:'Rajdhani',sans-serif; color:var(--parchment); }
+  #app{ min-height:100%; display:flex; flex-direction:column; align-items:center; padding:28px 16px 60px; }
+
+  h1{ font-family:'Cinzel',serif; font-weight:800; font-size:26px; color:var(--gold-soft);
+      letter-spacing:.04em; margin:0 0 4px; text-align:center; text-shadow:0 0 18px rgba(200,155,60,.3); }
+  .subtitle{ color:var(--teal); font-size:13px; letter-spacing:.25em; text-transform:uppercase; margin-bottom:24px; text-align:center; }
+
+  #progress-wrap{ width:100%; max-width:900px; margin-bottom:26px; }
+  #progress-label{ display:flex; justify-content:space-between; font-size:13px; color:var(--muted); margin-bottom:6px; }
+  #progress-bar{ height:6px; background:var(--panel); border:1px solid var(--line); overflow:hidden; }
+  #progress-fill{ height:100%; background:linear-gradient(90deg,var(--teal),var(--win)); width:0%; transition:width .5s ease; }
+
+  /* ---- admin reel ---- */
+  #reel-frame{
+    position:relative; width:320px; height:320px; border:1px solid var(--gold);
+    box-shadow:0 0 0 1px rgba(200,155,60,.25), 0 0 60px rgba(10,200,185,.08) inset;
+    background:linear-gradient(180deg, rgba(15,27,51,.75), rgba(7,12,23,.75));
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    margin-bottom:22px;
+  }
+  .corner{ position:absolute; width:16px; height:16px; border:2px solid var(--gold); }
+  .c-tl{top:-2px;left:-2px;border-right:none;border-bottom:none;}
+  .c-tr{top:-2px;right:-2px;border-left:none;border-bottom:none;}
+  .c-bl{bottom:-2px;left:-2px;border-right:none;border-top:none;}
+  .c-br{bottom:-2px;right:-2px;border-left:none;border-top:none;}
+
+  #reel-strip{ display:flex; align-items:center; will-change:transform; }
+  .reel-item{ width:120px; height:120px; margin:0 8px; flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .reel-item img{ width:88px; height:88px; border-radius:50%; border:2px solid var(--line); object-fit:cover; }
+  .reel-item span{ font-size:11px; color:var(--muted); margin-top:6px; text-align:center; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  #pointer{ position:absolute; left:50%; top:-2px; transform:translateX(-50%); width:0; height:0;
+    border-left:8px solid transparent; border-right:8px solid transparent; border-top:10px solid var(--gold); z-index:5; }
+
+  #result{ min-height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; margin-bottom:20px; }
+  #result img{ width:96px; height:96px; border-radius:50%; border:2px solid var(--gold); box-shadow:0 0 20px rgba(200,155,60,.3); }
+  #result-name{ font-family:'Cinzel',serif; font-size:20px; color:var(--gold-soft); }
+
+  #controls{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+  button{
+    font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:.05em; text-transform:uppercase; font-size:13px;
+    background:transparent; color:var(--parchment); border:1px solid var(--line); padding:10px 18px; cursor:pointer; transition:.15s;
+  }
+  button:hover:not(:disabled){ border-color:var(--gold); color:var(--gold-soft); }
+  button.primary{ border-color:var(--teal); color:var(--teal); }
+  button.primary:hover:not(:disabled){ background:rgba(10,200,185,.12); }
+  button.win{ border-color:var(--win); color:var(--win); }
+  button.win:hover:not(:disabled){ background:rgba(61,220,132,.12); }
+  button.danger{ border-color:var(--danger); color:var(--danger); }
+  button:disabled{ opacity:.35; cursor:not-allowed; }
+
+  #status{ margin-top:16px; font-size:13px; color:var(--muted); text-align:center; max-width:520px; }
+  #victory{ display:none; text-align:center; margin-top:10px; }
+  #victory.show{ display:block; }
+  #victory h2{ font-family:'Cinzel',serif; color:var(--win); font-size:22px; }
+
+  /* ---- public grid ---- */
+  #grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(96px,1fr));
+    gap:10px; width:100%; max-width:1100px; margin-top:6px;
+  }
+  .cell{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:8px 4px;
+    background:var(--panel); border:1px solid var(--line); }
+  .cell img{ width:64px; height:64px; border-radius:50%; object-fit:cover; border:2px solid var(--line); }
+  .cell span{ font-size:11.5px; margin-top:6px; line-height:1.2; }
+  .cell.done{ opacity:.55; }
+  .cell.done img{ filter:grayscale(1) brightness(.6); }
+  .cell.done span{ text-decoration:line-through; text-decoration-color:var(--win); text-decoration-thickness:2px; color:var(--muted); }
+  .cell.done::after{ content:'✓'; color:var(--win); font-size:11px; margin-top:2px; }
+
+  #admin-link{ position:fixed; bottom:10px; right:10px; font-size:11px; color:var(--muted); opacity:.5; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>La Faille Complète</h1>
+  <div class="subtitle" id="subtitle">Une victoire, chaque champion</div>
+
+  <div id="progress-wrap">
+    <div id="progress-label"><span id="p-count">0 / 0 gagnés</span><span id="p-remaining">0 restants</span></div>
+    <div id="progress-bar"><div id="progress-fill"></div></div>
+  </div>
+
+  <div id="admin-zone" style="display:none;">
+    <div id="reel-frame">
+      <div class="corner c-tl"></div><div class="corner c-tr"></div><div class="corner c-bl"></div><div class="corner c-br"></div>
+      <div id="pointer"></div>
+      <div id="reel-strip"></div>
+    </div>
+
+    <div id="result">
+      <div id="result-empty" style="color:var(--muted);font-size:14px;">Lance la roue pour tirer un champion</div>
+    </div>
+
+    <div id="controls">
+      <button class="primary" id="btn-spin">Lancer la roue</button>
+      <button class="win" id="btn-won" disabled>Gagné avec ce champion ✓</button>
+      <button id="btn-again" disabled>Perdu, relancer</button>
+      <button class="danger" id="btn-reset">Réinitialiser tout</button>
+    </div>
+
+    <div id="victory"><h2>🏆 Tous les champions vaincus. Défi terminé.</h2></div>
+  </div>
+
+  <div id="status">Chargement de la liste des champions…</div>
+
+  <div id="grid-zone" style="width:100%; display:flex; flex-direction:column; align-items:center;">
+    <div id="grid"></div>
+  </div>
+</div>
+
+<div id="admin-link"></div>
+
+<div id="pwd-modal" style="display:none;position:fixed;inset:0;background:rgba(4,6,12,.9);align-items:center;justify-content:center;z-index:50;">
+  <div style="width:340px;max-width:90vw;background:#0f1b33;border:1px solid #1f3358;padding:22px;text-align:center;">
+    <div style="color:#e8cb87;font-family:'Cinzel',serif;font-size:16px;margin-bottom:14px;">Accès admin</div>
+    <input id="pwd-input" type="password" placeholder="Mot de passe" style="width:100%;background:#070c17;border:1px solid #1f3358;color:#f0e6d2;padding:9px 10px;font-family:'Rajdhani',sans-serif;font-size:14px;margin-bottom:10px;box-sizing:border-box;">
+    <div id="pwd-error" style="color:#e84057;font-size:12px;min-height:16px;margin-bottom:8px;"></div>
+    <button id="pwd-submit" class="primary" style="width:100%;">Valider</button>
+  </div>
+</div>
+
+<div id="confirm-modal" style="display:none;position:fixed;inset:0;background:rgba(4,6,12,.85);align-items:center;justify-content:center;z-index:40;">
+  <div style="width:380px;max-width:90vw;background:#0f1b33;border:1px solid #1f3358;padding:20px;text-align:center;">
+    <div id="confirm-text" style="color:#f0e6d2;font-size:14px;margin-bottom:16px;"></div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button id="confirm-yes" style="border-color:#e84057;color:#e84057;">Confirmer</button>
+      <button id="confirm-no">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(async function(){
+  const $ = id => document.getElementById(id);
+
+  function showConfirm(text, onYes){
+    $('confirm-text').textContent = text;
+    $('confirm-modal').style.display = 'flex';
+    const cleanup = () => { $('confirm-modal').style.display='none'; $('confirm-yes').onclick=null; $('confirm-no').onclick=null; };
+    $('confirm-yes').onclick = () => { cleanup(); onYes(); };
+    $('confirm-no').onclick = () => { cleanup(); };
+  }
+
+  function askPassword(){
+    return new Promise((resolve) => {
+      $('pwd-modal').style.display = 'flex';
+      $('pwd-input').focus();
+      const submit = () => resolve($('pwd-input').value);
+      $('pwd-submit').onclick = submit;
+      $('pwd-input').onkeydown = (e) => { if(e.key === 'Enter') submit(); };
+    });
+  }
+
+  const STORE_KEY = 'faille-complete-won';
+  const REDIS_URL = 'https://internal-yak-74861.upstash.io';
+  const REDIS_TOKEN = 'gQAAAAAAASRtAAIgcDE2OWU2NmYxYmQxZjU0NDMyYTJhNGRmN2QzM2Q5MTBmYg';
+  const ADMIN_TOKEN = 'gZTJ14-0cHAJHCoLBgsVj4Z2';
+  const ADMIN_PASSWORD = 'subathon2424';
+  const hasToken = new URLSearchParams(location.search).get('ctrl') === ADMIN_TOKEN;
+  let isAdmin = false;
+  if(hasToken){
+    let ok = false;
+    while(!ok){
+      const pwd = await askPassword();
+      if(pwd === ADMIN_PASSWORD){
+        ok = true;
+        isAdmin = true;
+        $('pwd-modal').style.display = 'none';
+      }else{
+        $('pwd-error').textContent = 'Mot de passe incorrect, réessaie.';
+        $('pwd-input').value = '';
+      }
+    }
+  }
+
+  let allChamps = [];
+  let won = [];
+  let currentPick = null;
+  let spinning = false;
+
+  if(isAdmin){
+    $('admin-zone').style.display = 'flex';
+    $('admin-zone').style.flexDirection = 'column';
+    $('admin-zone').style.alignItems = 'center';
+    $('subtitle').textContent = 'Mode admin — lien à ne pas partager en chat';
+  }else{
+    $('admin-link').textContent = '';
+  }
+
+  async function loadWon(){
+    try{
+      const res = await fetch(`${REDIS_URL}/get/${STORE_KEY}`, {
+        headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
+      });
+      const data = await res.json();
+      won = data.result ? JSON.parse(data.result) : [];
+    }catch(e){ won = []; }
+  }
+  async function saveWon(){
+    try{
+      await fetch(`${REDIS_URL}/set/${STORE_KEY}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
+        body: JSON.stringify(won)
+      });
+    }catch(e){}
+  }
+
+  const DDRAGON_VERSION = '16.16.1';
+  const CHAMPION_IDS = [
+    ["Aatrox","Aatrox"],["Ahri","Ahri"],["Akali","Akali"],["Akshan","Akshan"],["Alistar","Alistar"],
+    ["Ambessa","Ambessa"],["Amumu","Amumu"],["Anivia","Anivia"],["Annie","Annie"],["Aphelios","Aphelios"],
+    ["Ashe","Ashe"],["AurelionSol","Aurelion Sol"],["Aurora","Aurora"],["Azir","Azir"],["Bard","Bard"],
+    ["Belveth","Bel'Veth"],["Blitzcrank","Blitzcrank"],["Brand","Brand"],["Braum","Braum"],["Briar","Briar"],
+    ["Caitlyn","Caitlyn"],["Camille","Camille"],["Cassiopeia","Cassiopeia"],["Chogath","Cho'Gath"],["Corki","Corki"],
+    ["Darius","Darius"],["Diana","Diana"],["Draven","Draven"],["DrMundo","Dr. Mundo"],["Ekko","Ekko"],
+    ["Elise","Elise"],["Evelynn","Evelynn"],["Ezreal","Ezreal"],["Fiddlesticks","Fiddlesticks"],["Fiora","Fiora"],
+    ["Fizz","Fizz"],["Galio","Galio"],["Gangplank","Gangplank"],["Garen","Garen"],["Gnar","Gnar"],
+    ["Gragas","Gragas"],["Graves","Graves"],["Gwen","Gwen"],["Hecarim","Hecarim"],["Heimerdinger","Heimerdinger"],
+    ["Hwei","Hwei"],["Illaoi","Illaoi"],["Irelia","Irelia"],["Ivern","Ivern"],["Janna","Janna"],
+    ["JarvanIV","Jarvan IV"],["Jax","Jax"],["Jayce","Jayce"],["Jhin","Jhin"],["Jinx","Jinx"],
+    ["Kaisa","Kai'Sa"],["Kalista","Kalista"],["Karma","Karma"],["Karthus","Karthus"],["Kassadin","Kassadin"],
+    ["Katarina","Katarina"],["Kayle","Kayle"],["Kayn","Kayn"],["Kennen","Kennen"],["Khazix","Kha'Zix"],
+    ["Kindred","Kindred"],["Kled","Kled"],["KogMaw","Kog'Maw"],["KSante","K'Sante"],["Leblanc","LeBlanc"],
+    ["LeeSin","Lee Sin"],["Leona","Leona"],["Lillia","Lillia"],["Lissandra","Lissandra"],["Locke","Locke"],
+    ["Lucian","Lucian"],["Lulu","Lulu"],["Lux","Lux"],["Malphite","Malphite"],["Malzahar","Malzahar"],
+    ["Maokai","Maokai"],["MasterYi","Master Yi"],["Mel","Mel"],["Milio","Milio"],["MissFortune","Miss Fortune"],
+    ["MonkeyKing","Wukong"],["Mordekaiser","Mordekaiser"],["Morgana","Morgana"],["Naafiri","Naafiri"],["Nami","Nami"],
+    ["Nasus","Nasus"],["Nautilus","Nautilus"],["Neeko","Neeko"],["Nidalee","Nidalee"],["Nilah","Nilah"],
+    ["Nocturne","Nocturne"],["Nunu","Nunu & Willump"],["Olaf","Olaf"],["Orianna","Orianna"],["Ornn","Ornn"],
+    ["Pantheon","Pantheon"],["Poppy","Poppy"],["Pyke","Pyke"],["Qiyana","Qiyana"],["Quinn","Quinn"],
+    ["Rakan","Rakan"],["Rammus","Rammus"],["RekSai","Rek'Sai"],["Rell","Rell"],["Renata","Renata Glasc"],
+    ["Renekton","Renekton"],["Rengar","Rengar"],["Riven","Riven"],["Rumble","Rumble"],["Ryze","Ryze"],
+    ["Samira","Samira"],["Sejuani","Sejuani"],["Senna","Senna"],["Seraphine","Seraphine"],["Sett","Sett"],
+    ["Shaco","Shaco"],["Shen","Shen"],["Shyvana","Shyvana"],["Singed","Singed"],["Sion","Sion"],
+    ["Sivir","Sivir"],["Skarner","Skarner"],["Smolder","Smolder"],["Sona","Sona"],["Soraka","Soraka"],
+    ["Swain","Swain"],["Sylas","Sylas"],["Syndra","Syndra"],["TahmKench","Tahm Kench"],["Taliyah","Taliyah"],
+    ["Talon","Talon"],["Taric","Taric"],["Teemo","Teemo"],["Thresh","Thresh"],["Tristana","Tristana"],
+    ["Trundle","Trundle"],["Tryndamere","Tryndamere"],["TwistedFate","Twisted Fate"],["Twitch","Twitch"],["Udyr","Udyr"],
+    ["Urgot","Urgot"],["Varus","Varus"],["Vayne","Vayne"],["Veigar","Veigar"],["Velkoz","Vel'Koz"],
+    ["Vex","Vex"],["Vi","Vi"],["Viego","Viego"],["Viktor","Viktor"],["Vladimir","Vladimir"],
+    ["Volibear","Volibear"],["Warwick","Warwick"],["Xayah","Xayah"],["Xerath","Xerath"],["XinZhao","Xin Zhao"],
+    ["Yasuo","Yasuo"],["Yone","Yone"],["Yorick","Yorick"],["Yuumi","Yuumi"],["Zac","Zac"],
+    ["Zed","Zed"],["Zeri","Zeri"],["Ziggs","Ziggs"],["Zilean","Zilean"],["Zoe","Zoe"],
+    ["Zyra","Zyra"],["Yunara","Yunara"],["Zaahen","Zaahen"]
+  ];
+
+  async function fetchChampions(){
+    return CHAMPION_IDS.map(([id, name]) => ({
+      id, name,
+      img: `https://ddragon.leagueoflegends.com/cdn/${DDRAGON_VERSION}/img/champion/${id}.png`
+    })).sort((a,b)=>a.name.localeCompare(b.name));
+  }
+
+  function pool(){ return allChamps.filter(c => !won.includes(c.id)); }
+
+  function renderProgress(){
+    const total = allChamps.length;
+    const w = won.length;
+    $('p-count').textContent = `${w} / ${total} gagnés`;
+    $('p-remaining').textContent = `${total-w} restants`;
+    $('progress-fill').style.width = total ? `${(w/total)*100}%` : '0%';
+  }
+
+  function renderGrid(){
+    const grid = $('grid');
+    grid.innerHTML = '';
+    allChamps.forEach(c => {
+      const done = won.includes(c.id);
+      const cell = document.createElement('div');
+      cell.className = 'cell' + (done ? ' done' : '');
+      cell.innerHTML = `<img src="${c.img}" alt=""><span>${c.name}</span>`;
+      grid.appendChild(cell);
+    });
+  }
+
+  // ---- admin-only: reel spin ----
+  function buildStrip(finalChamp){
+    const p = pool();
+    const seq = [];
+    const loops = 28;
+    for(let i=0;i<loops;i++) seq.push(p[Math.floor(Math.random()*p.length)]);
+    seq.push(finalChamp);
+    const strip = $('reel-strip');
+    strip.style.transition = 'none';
+    strip.style.transform = 'translateX(0px)';
+    strip.innerHTML = '';
+    seq.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'reel-item';
+      div.innerHTML = `<img src="${c.img}" alt=""><span>${c.name}</span>`;
+      strip.appendChild(div);
+    });
+    return seq.length;
+  }
+
+  function spin(){
+    if(spinning) return;
+    const p = pool();
+    if(p.length === 0) return;
+    if(p.length === 1){ currentPick = p[0]; finishOnSingle(); return; }
+    spinning = true;
+    $('btn-spin').disabled = true;
+    $('btn-won').disabled = true;
+    $('btn-again').disabled = true;
+    $('result').innerHTML = '';
+
+    const finalChamp = p[Math.floor(Math.random()*p.length)];
+    currentPick = finalChamp;
+    const itemWidth = 136;
+    const count = buildStrip(finalChamp);
+    const frameWidth = $('reel-frame').clientWidth;
+    const targetX = -(((count-1) * itemWidth) - (frameWidth/2 - itemWidth/2));
+
+    const strip = $('reel-strip');
+    requestAnimationFrame(() => {
+      strip.style.transition = 'transform 3.2s cubic-bezier(.12,.72,.15,1)';
+      strip.style.transform = `translateX(${targetX}px)`;
+    });
+
+    setTimeout(() => {
+      spinning = false;
+      showResult(finalChamp);
+      $('btn-spin').disabled = pool().length <= 1;
+      $('btn-won').disabled = false;
+      $('btn-again').disabled = false;
+    }, 3300);
+  }
+
+  function finishOnSingle(){
+    showResult(currentPick);
+    $('btn-spin').disabled = true;
+    $('btn-won').disabled = false;
+    $('btn-again').disabled = true;
+  }
+
+  function showResult(c){
+    $('result').innerHTML = `<img src="${c.img}" alt=""><div id="result-name">${c.name}</div>`;
+  }
+
+  if(isAdmin){
+    $('btn-spin').onclick = spin;
+    $('btn-won').onclick = async () => {
+      if(!currentPick) return;
+      won.push(currentPick.id);
+      await saveWon();
+      renderProgress(); renderGrid();
+      $('btn-won').disabled = true;
+      $('btn-again').disabled = true;
+      currentPick = null;
+      $('status').textContent = pool().length ? 'Victoire enregistrée. Relance la roue pour le prochain champion.' : '';
+      if(pool().length === 0){ $('victory').classList.add('show'); $('btn-spin').disabled = true; }
+    };
+    $('btn-again').onclick = () => {
+      currentPick = null;
+      $('btn-won').disabled = true;
+      $('btn-again').disabled = true;
+      $('result').innerHTML = `<div id="result-empty" style="color:var(--muted);font-size:14px;">Lance la roue pour tirer un champion</div>`;
+    };
+    $('btn-reset').onclick = () => {
+      showConfirm('Réinitialiser la progression ? Tous les champions redeviennent disponibles pour tout le monde (viewers inclus).', async () => {
+        won = [];
+        currentPick = null;
+        await saveWon();
+        renderProgress(); renderGrid();
+        $('victory').classList.remove('show');
+        $('btn-spin').disabled = false;
+        $('btn-won').disabled = true;
+        $('btn-again').disabled = true;
+        $('result').innerHTML = `<div id="result-empty" style="color:var(--muted);font-size:14px;">Lance la roue pour tirer un champion</div>`;
+        $('status').textContent = '';
+      });
+    };
+  }
+
+  try{
+    allChamps = await fetchChampions();
+    await loadWon();
+    renderProgress();
+    renderGrid();
+    $('status').textContent = isAdmin
+      ? `${allChamps.length} champions chargés. Prêt à lancer la roue.`
+      : `${allChamps.length} champions — progression mise à jour automatiquement.`;
+    if(pool().length === 0 && allChamps.length && isAdmin){
+      $('victory').classList.add('show');
+      $('btn-spin').disabled = true;
+    }
+  }catch(e){
+    $('status').textContent = "Erreur inattendue au chargement de la liste. Recharge la page pour réessayer.";
+    if(isAdmin) $('btn-spin').disabled = true;
+  }
+
+  // keep viewers' grid in sync during the live without a manual refresh
+  if(!isAdmin){
+    setInterval(async () => {
+      await loadWon();
+      renderProgress();
+      renderGrid();
+    }, 15000);
+  }
+})();
+</script>
+</body>
+</html>
