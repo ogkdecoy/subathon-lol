@@ -104,7 +104,6 @@
     <div id="controls">
       <button class="primary" id="btn-spin">Lancer la roue</button>
       <button class="win" id="btn-won" disabled>Gagné avec ce champion ✓</button>
-      <button id="btn-again" disabled>Perdu, relancer</button>
       <button class="danger" id="btn-reset">Réinitialiser tout</button>
     </div>
 
@@ -300,7 +299,6 @@
               if(currentPick && currentPick.id === c.id){
                 currentPick = null;
                 $('btn-won').disabled = true;
-                $('btn-again').disabled = true;
                 $('reel-image').style.display = 'none';
                 $('reel-caption').textContent = '';
               }
@@ -333,7 +331,6 @@
     spinning = true;
     $('btn-spin').disabled = true;
     $('btn-won').disabled = true;
-    $('btn-again').disabled = true;
 
     const finalChamp = p[Math.floor(Math.random()*p.length)];
     currentPick = finalChamp;
@@ -355,7 +352,6 @@
         spinning = false;
         $('btn-spin').disabled = pool().length <= 1;
         $('btn-won').disabled = false;
-        $('btn-again').disabled = false;
         return;
       }
       const c = p[Math.floor(Math.random()*p.length)];
@@ -378,7 +374,6 @@
     reelImg.classList.add('landed');
     $('btn-spin').disabled = true;
     $('btn-won').disabled = false;
-    $('btn-again').disabled = true;
   }
 
   if(isAdmin){
@@ -389,17 +384,9 @@
       await saveWon();
       renderProgress(); renderGrid();
       $('btn-won').disabled = true;
-      $('btn-again').disabled = true;
       currentPick = null;
       $('status').textContent = pool().length ? 'Victoire enregistrée. Relance la roue pour le prochain champion.' : '';
       if(pool().length === 0){ $('victory').classList.add('show'); $('btn-spin').disabled = true; }
-    };
-    $('btn-again').onclick = () => {
-      currentPick = null;
-      $('btn-won').disabled = true;
-      $('btn-again').disabled = true;
-      $('reel-image').style.display = 'none';
-      $('reel-caption').textContent = '';
     };
     $('btn-reset').onclick = () => {
       showConfirm('Réinitialiser la progression ? Tous les champions redeviennent disponibles pour tout le monde (viewers inclus).', async () => {
@@ -410,7 +397,6 @@
         $('victory').classList.remove('show');
         $('btn-spin').disabled = false;
         $('btn-won').disabled = true;
-        $('btn-again').disabled = true;
         $('reel-image').style.display = 'none';
         $('reel-caption').textContent = '';
         $('status').textContent = '';
