@@ -77,6 +77,9 @@
   .cell.done img{ filter:grayscale(1) brightness(.6); }
   .cell.done span{ text-decoration:line-through; text-decoration-color:var(--win); text-decoration-thickness:2px; color:var(--muted); }
   .cell.done::after{ content:'✓'; color:var(--win); font-size:11px; margin-top:2px; }
+  .cell.clickable{ cursor:pointer; transition:.15s; }
+  .cell.clickable:hover{ border-color:var(--gold); background:#16264a; }
+  .cell.clickable:hover img{ border-color:var(--gold); }
 
   #admin-link{ position:fixed; bottom:10px; right:10px; font-size:11px; color:var(--muted); opacity:.5; }
 </style>
@@ -275,8 +278,39 @@
     allChamps.forEach(c => {
       const done = won.includes(c.id);
       const cell = document.createElement('div');
-      cell.className = 'cell' + (done ? ' done' : '');
+      cell.className = 'cell' + (done ? ' done' : '') + (isAdmin ? ' clickable' : '');
       cell.innerHTML = `<img src="${c.img}" alt=""><span>${c.name}</span>`;
+      if(isAdmin){
+        cell.title = done ? `Annuler la victoire sur ${c.name}` : `Valider ${c.name} comme gagné`;
+        cell.onclick = () => {
+          if(done){
+            showConfirm(`Annuler la victoire sur ${c.name} ? Il redeviendra disponible dans la roue.`, async () => {
+              won = won.filter(id => id !== c.id);
+              await saveWon();
+              renderProgress(); renderGrid();
+              $('victory').classList.remove('show');
+              if(pool().length > 0) $('btn-spin').disabled = false;
+              $('status').textContent = `${c.name} remis dans la roue.`;
+            });
+          }else{
+            showConfirm(`Valider ${c.name} comme gagné ? (victoire manuelle, sans passer par la roue)`, async () => {
+              won.push(c.id);
+              await saveWon();
+              renderProgress(); renderGrid();
+              if(currentPick && currentPick.id === c.id){
+                currentPick = null;
+                $('btn-won').disabled = true;
+                $('btn-again').disabled = true;
+                $('reel-image').style.display = 'none';
+                $('reel-caption').textContent = '';
+              }
+              $('status').textContent = `${c.name} validé manuellement.`;
+              if(pool().length === 0){ $('victory').classList.add('show'); $('btn-spin').disabled = true; }
+              else if(pool().length === 1){ $('btn-spin').disabled = false; }
+            });
+          }
+        };
+      }
       grid.appendChild(cell);
     });
   }
